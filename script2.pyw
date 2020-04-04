@@ -1,0 +1,249 @@
+import numpy as np
+import pickle
+import cv2
+#from Tkinter import *
+import tkinter as Tk
+#Functions:#Data Manipulation Functions:
+
+def loadDictionary():
+    '''Opens the pickle file and returns
+    the dictionary of names'''
+    pickle_in=open("faces.pickle","rb")
+    dictionaryofnames=pickle.load(pickle_in)
+    pickle_in.close()
+    return dictionaryofnames
+
+
+def rewriteDictionary():
+    '''Opens the pickle file and stores the dictionary of
+    names overwriting the previous value'''
+    #print(names)
+    pickle_out = open("faces.pickle","wb")
+    pickle.dump(names, pickle_out)
+    pickle_out.close()
+
+
+def clearRecords():
+    '''Opens the pickle file and rewrites it with an empty
+    dictionary and also resets other variables'''
+    global facenumber
+    global names
+    global dataf
+    global labels
+    pickle_out = open("faces.pickle","wb")
+    pickle.dump({}, pickle_out)
+    pickle_out.close()
+    facenumber=0
+    names={}
+    dataf=[]
+    labels=[]
+
+
+def loadLists(names):
+    '''Loads the faces from the numpyarrays and then
+     concatenates it into an array dataf and also initialises the labels
+     INPUT:Dictionary of names
+     OUTPUT:dataf and labels
+    '''
+    if(len(names)==0):
+        return ([],[])
+    filelist=[]
+    for i in range(len(names)):
+        npfname="FACE"+str(i)+'.npy'
+        tmpobj=np.load(npfname).reshape((20,50*50*3)) #FACE i
+        filelist.append(tmpobj)
+    #Create a Matrix to store labels:
+    labels=np.zeros((20*len(names),1))
+    for i in range(len(names)):
+        for j in range(20):
+            labels[j+20*i]=float(i)
+    listoffiles=[]
+    for i in range(len(names)):
+        listoffiles.append(filelist[i])
+    #Combine into one array:
+    if(len(listoffiles)!=0):
+        dataf=np.concatenate(listoffiles)
+    return (dataf,labels)
+
+#Face recording function:
+
+def recordFaces():
+    '''Detects and saves the face being detected to use for recognition'''
+    global entry
+    global facenumber 
+    global names 
+    global dataf
+    global labels
+    #Create a new camera object:
+    camera=cv2.VideoCapture('http://192.168.60.51:8080/video')    
+    #Counter for counting the current frame:
+    framecount=0
+    #A list for storing data extracted from faces while recording:
+    data=[]
+    while True:
+        #Read the frame and ret value:
+        ret,frame=camera.read()
+        #ret ==1 for a working camera and 0 if not
+        if ret:
+            #Convert the given frame into grayscale:
+            grayframe=cv2.cvtColor(frame,cv2.COLOR_BGR2GRAY)
+            #Apply the haar cascade to detect the face:
+            facecoord=face_cascade.detectMultiScale(grayframe,1.3,5)
+            #facecoord contains the top left corner's coordinates aswell as the height and width of the face
+            for (x,y,width,height) in facecoord:
+                #Extract the face from the frame:
+                face_component=frame[y:y+height,x:x+width,:]
+                #Resize the frame:
+                faceresized=cv2.resize(face_component,(50,50))
+                #Store the data every 10 frames till the data is complete:
+                if framecount%10==0 and len(data)<20:
+                    data.append(faceresized)
+                #Draw a rectangle to show the face in the frame:
+                cv2.rectangle(frame,(x,y),(x+width,y+height),(0,255,255),2)
+                #Putting the:
+                info="CAPTURING:"+str((len(data)/20.0)*100)+"%"
+                cv2.putText(frame,info,(0,30),font,1,(0,255,255),1)
+            #Increment the framecounter
+            framecount+=1
+            #Display the frame:
+            cv2.imshow('FACE_RECOGNITION_FRAME',frame)
+            #Stop recording if the escape key is presed or 20 frames have been captured:
+            if cv2.waitKey(1)==27 or len(data)>=20:
+                break
+        else:
+            #Camera not working:
+            print("ERROR WHILE OPENING CAMERA")
+    #Release the camera:
+    camera.release()
+    #Destroy all windows created:
+    cv2.destroyAllWindows()
+    #Convert data into a numpy array:
+    data=np.asarray(data)
+    #Save the face into memory:
+    savestr="FACE"+str(facenumber)
+    np.save(savestr,data)
+    #Add the new face to the dictionary,using the name from the entry field in the tkinter GUI:
+    names[facenumber]=entry.get()
+    #Rewrite the dictionary in memory:
+    rewriteDictionary()
+    #Reload the dictionary:
+    names=loadDictionary()
+    #Readjust the value of the number of faces stored:
+    facenumber=len(names)
+    #Reset other variables used:
+    (dataf,labels)=loadLists(names)
+
+#Face recognition functions:
+        
+def distance(x1,x2):
+    '''Returns the distance'''
+    return np.sqrt(((x1-x2)**2).sum())
+
+
+def knn(x, train, targets, k=5):
+    '''Applys the knn algorithm to determine which face is being detected
+       INPUT:detected face, dataf, labels
+       OUTPUT:key
+    '''
+    m = train.shape[0]
+    dist = []
+    for ix in range(m):
+        #COMPUTE THE DISTANCE FROM EACH POINT AND STORE IN dist
+        dist.append(distance(x, train[ix]))
+    dist = np.asarray(dist)
+    indx = np.argsort(dist)
+    sorted_labels = labels[indx][:k]
+    counts = np.unique(sorted_labels, return_counts=True)
+    return counts[0][np.argmax(counts[1])]
+
+
+def recogniseFaces():
+    '''Detects the faces and recognises the faces present'''
+    global listofrecognised
+    listofrecognised=[]
+    #Check if there are faces to recognise
+    if(len(names)==0):
+        return 
+    #Initialise the camera
+    camera=cv2.VideoCapture('http://192.168.60.51:8080/video')    
+    while True:
+        #Get the frame:
+        ret,frame=camera.read()
+        inframe=[]
+        if ret==True:
+            #Convert to grayscale and extract the face:
+            grayframe=cv2.cvtColor(frame,cv2.COLOR_BGR2GRAY)
+            facecoord=face_cascade.detectMultiScale(grayframe,1.3,5)
+            #For each frame:
+            for (x,y,width,height) in facecoord:
+                face_component=frame[y:y+height,x:x+width,:]
+                faceresized=cv2.resize(face_component,(50,50))
+                #After resizing and processing it is passed to the knn function:
+                lab=knn(faceresized.flatten(),dataf,labels)
+                #Name of the detected face is taken from the knn library:
+                Detected_face=names[int(lab)]
+                #Adding it to the list of people recognised:
+                if Detected_face not in listofrecognised:
+                        listofrecognised.append(Detected_face)
+                if Detected_face not in inframe:
+                    #Display the name:
+                    cv2.putText(frame,Detected_face,(x,y),font,1,(255,143,121),2)
+                    #Draw a rectangle over the face:
+                    cv2.rectangle(frame,(x,y),(x+width,y+height),(255,143,121),2)
+                    inframe.append(Detected_face)
+            cv2.imshow('FACE_RECOGNITION',frame)
+            if cv2.waitKey(10)==27:
+                break;
+        else:
+            print("ERROR OPENING CAMERA")
+    #Stop Recording:
+    camera.release()
+    #Terminate the window:
+    cv2.destroyAllWindows()
+
+
+def saveRecognised():
+    '''Saves the list of recognised people into a text file after a recognition session'''
+    global listofrecognised
+    f=open('RecognisedList.txt','w')
+    f.write('List of people recognised:')
+    for names in listofrecognised:
+        f.write('\n'+names)
+    f.close
+    listofrecognised=[]
+    
+
+##FUNCTIONS END##
+
+    
+listofrecognised=[]
+#Load the haar cascade for facial feature detection:
+face_cascade=cv2.CascadeClassifier('./haarcascade_ff.xml')
+#Font to be used for text in the opencv gui:
+font=cv2.FONT_HERSHEY_SIMPLEX
+#Load the records:
+names=loadDictionary()
+#Set the facenumber:
+facenumber=len(names)
+print(names)
+if(facenumber!=0):
+    (dataf,labels)=loadLists(names)
+
+#GUI using Tkinter:
+root=Tk.Tk()
+root.title("FACE DETECTION AND RECOGNITION")
+label=Tk.Label(text="ENTER THE NAME IN THE ENTRY FIELD BEFORE RECORDING:")
+entry=Tk.Entry(root)
+record_button=Tk.Button(text="Record Faces",fg="red",command=recordFaces)
+detect_button=Tk.Button(text="Recognise Faces",fg="green",command=recogniseFaces)
+clear_button=Tk.Button(text="Clear Records",fg="purple",command=clearRecords)
+list_button=Tk.Button(text="Save Recognised",fg="blue",command=saveRecognised)
+label.grid(row=0)
+entry.grid(row=1,columnspan=100)
+record_button.grid(row=2,columnspan=100)
+detect_button.grid(row=3,columnspan=100)
+clear_button.grid(row=4,columnspan=100)
+list_button.grid(row=5,columnspan=100)
+root.mainloop()
+
+#-------------------#-------------------#-------------------#-------------------#-------------------#

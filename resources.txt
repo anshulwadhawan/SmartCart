@@ -1,0 +1,7 @@
+Tensorflow Object Detcetiojn API - https://medium.com/@WuStangDan/step-by-step-tensorflow-object-detection-api-tutorial-part-1-selecting-a-model-a02b6aabe39e
+
+OpenCV - basics for video capture -https://opencv.org/
+
+SSD research paper -https://arxiv.org/abs/1512.02325 , https://towardsdatascience.com/deep-learning-for-object-detection-a-comprehensive-review-73930816d8d9 
+
+SSD Inception architecture - https://arxiv.org/abs/1512.00567
