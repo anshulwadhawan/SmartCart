@@ -2,12 +2,12 @@ Ensure you are using Python 2.7 with the following installed:
 1.opencv
 2.tkinter
 3.pickle
-4.NumPy
+4.numpy
 
 Running the Program:
 Ensure that the files "haarcascade_ff" and "faces.pickle" are in the same directory.
-Double click "FaceRecognitionandDetection" and an interface with buttons should open.
-If the program doesn't work, double click ResetandDebug which runs a script to reset the dictionary and clear "faces.pickle".
+Run "userCamera.py" and an interface with buttons should open.
+If the program doesn't work, click ResetandDebug which runs a script to reset the dictionary and clear "faces.pickle".
 
 Using the Program:
 If there are no faces recorded, the recognise button does nothing.
