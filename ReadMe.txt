@@ -1,3 +1,6 @@
+The intelligent cart prepares an invoice of fruits present in the cart after detection, for the user recognised by face.
+Implemented Single Shot Detector (SSD) Model for object detection (among fruits) and KNN Algorithm for facial recognition difference evaluations.
+
 Ensure you are using Python 2.7 with the following installed:
 1.opencv
 2.tkinter
